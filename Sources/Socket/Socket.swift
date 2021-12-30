@@ -1318,8 +1318,6 @@ public class Socket: SocketReader, SocketWriter {
 			throw Error(code: Socket.SOCKET_ERR_UNABLE_TO_CREATE_SOCKET, reason: self.lastError())
 		}
 
-		try self.ignoreSIGPIPE(on: self.socketfd)
-
 		// Create the signature...
 		try self.signature = Signature(
 			protocolFamily: family.value,
@@ -1356,8 +1354,6 @@ public class Socket: SocketReader, SocketWriter {
 			let type = SOCK_STREAM
 		#endif
 		
-		try self.ignoreSIGPIPE(on: self.socketfd)
-
 		if path != nil {
 
 			try self.signature = Signature(socketType: .stream, proto: .unix, path: path)
@@ -1905,8 +1901,6 @@ public class Socket: SocketReader, SocketWriter {
 
 			throw Error(code: Socket.SOCKET_ERR_WRONG_PROTOCOL, reason: "Unable to determine connected socket protocol family.")
 		}
-
-		try self.ignoreSIGPIPE(on: self.socketfd)
 
 		try self.signature = Signature(
 			protocolFamily: Int32(info!.pointee.ai_family),
@@ -3738,25 +3732,5 @@ public class Socket: SocketReader, SocketWriter {
 	private func lastError() -> String {
 
 		return String(validatingUTF8: strerror(errno)) ?? "Error: \(errno)"
-	}
-	
-	///
-	/// Private function to set **NOSIGPIPE** on a socket. **No-op on Linux.**
-	///
-	/// - Parameter fd: The socket file descriptor upon which to act.
-	///
-	private func ignoreSIGPIPE(on fd: Int32) throws {
-		
-		#if !os(Linux)
-		
-			// Set the new socket to ignore SIGPIPE to avoid dying on interrupted connections...
-			// Note: Linux does not support the SO_NOSIGPIPE option. Instead, we use the
-			// MSG_NOSIGNAL flags passed to send.  See the write() functions below.
-			var on: Int32 = 1
-			if setsockopt(self.socketfd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size)) < 0 {
-				throw Error(code: Socket.SOCKET_ERR_SETSOCKOPT_FAILED, reason: self.lastError())
-			}
-		
-		#endif
 	}
 }
